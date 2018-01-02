@@ -3,7 +3,7 @@ package controller
 import (
 	kutilcore "github.com/appscode/kutil/core/v1"
 	kutilrbac "github.com/appscode/kutil/rbac/v1beta1"
-	"github.com/kubedb/apimachinery/apis/kubedb"
+	// "github.com/kubedb/apimachinery/apis/kubedb"
 	api "github.com/kubedb/apimachinery/apis/kubedb/v1alpha1"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1beta1"
@@ -11,9 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *Controller) deleteRole(elastic *api.Elasticsearch) error {
+func (c *Controller) deleteRole(elasticsearch *api.Elasticsearch) error {
 	// Delete existing Roles
-	if err := c.Client.RbacV1beta1().Roles(elastic.Namespace).Delete(elastic.OffshootName(), nil); err != nil {
+	if err := c.Client.RbacV1beta1().Roles(elasticsearch.Namespace).Delete(elasticsearch.OffshootName(), nil); err != nil {
 		if !kerr.IsNotFound(err) {
 			return err
 		}
@@ -21,26 +21,20 @@ func (c *Controller) deleteRole(elastic *api.Elasticsearch) error {
 	return nil
 }
 
-func (c *Controller) ensureRole(elastic *api.Elasticsearch) error {
+func (c *Controller) ensureRole(elasticsearch *api.Elasticsearch) error {
 	// Create new Roles
 	_, _, err := kutilrbac.CreateOrPatchRole(
 		c.Client,
 		metav1.ObjectMeta{
-			Name:      elastic.Name,
-			Namespace: elastic.Namespace,
+			Name:      elasticsearch.OffshootName(),
+			Namespace: elasticsearch.Namespace,
 		},
 		func(in *rbac.Role) *rbac.Role {
 			in.Rules = []rbac.PolicyRule{
 				{
-					APIGroups:     []string{kubedb.GroupName},
-					Resources:     []string{api.ResourceTypeElasticsearch},
-					ResourceNames: []string{elastic.Name},
-					Verbs:         []string{"get"},
-				},
-				{
 					APIGroups: []string{core.GroupName},
-					Resources: []string{"services", "endpoints"},
-					Verbs:     []string{"get"},
+					Resources: []string{"nodes"},
+					Verbs:     []string{"list"},
 				},
 			}
 			return in
@@ -49,9 +43,9 @@ func (c *Controller) ensureRole(elastic *api.Elasticsearch) error {
 	return err
 }
 
-func (c *Controller) deleteServiceAccount(elastic *api.Elasticsearch) error {
+func (c *Controller) deleteServiceAccount(elasticsearch *api.Elasticsearch) error {
 	// Delete existing ServiceAccount
-	if err := c.Client.CoreV1().ServiceAccounts(elastic.Namespace).Delete(elastic.OffshootName(), nil); err != nil {
+	if err := c.Client.CoreV1().ServiceAccounts(elasticsearch.Namespace).Delete(elasticsearch.OffshootName(), nil); err != nil {
 		if !kerr.IsNotFound(err) {
 			return err
 		}
@@ -59,13 +53,13 @@ func (c *Controller) deleteServiceAccount(elastic *api.Elasticsearch) error {
 	return nil
 }
 
-func (c *Controller) ensureServiceAccount(elastic *api.Elasticsearch) error {
+func (c *Controller) ensureServiceAccount(elasticsearch *api.Elasticsearch) error {
 	// Create new ServiceAccount
 	_, _, err := kutilcore.CreateOrPatchServiceAccount(
 		c.Client,
 		metav1.ObjectMeta{
-			Name:      elastic.OffshootName(),
-			Namespace: elastic.Namespace,
+			Name:      elasticsearch.OffshootName(),
+			Namespace: elasticsearch.Namespace,
 		},
 		func(in *core.ServiceAccount) *core.ServiceAccount {
 			return in
@@ -74,9 +68,9 @@ func (c *Controller) ensureServiceAccount(elastic *api.Elasticsearch) error {
 	return err
 }
 
-func (c *Controller) deleteRoleBinding(elastic *api.Elasticsearch) error {
+func (c *Controller) deleteRoleBinding(elasticsearch *api.Elasticsearch) error {
 	// Delete existing RoleBindings
-	if err := c.Client.RbacV1beta1().RoleBindings(elastic.Namespace).Delete(elastic.OffshootName(), nil); err != nil {
+	if err := c.Client.RbacV1beta1().RoleBindings(elasticsearch.Namespace).Delete(elasticsearch.OffshootName(), nil); err != nil {
 		if !kerr.IsNotFound(err) {
 			return err
 		}
@@ -84,25 +78,25 @@ func (c *Controller) deleteRoleBinding(elastic *api.Elasticsearch) error {
 	return nil
 }
 
-func (c *Controller) ensureRoleBinding(elastic *api.Elasticsearch) error {
+func (c *Controller) ensureRoleBinding(elasticsearch *api.Elasticsearch) error {
 	// Ensure new RoleBindings
 	_, _, err := kutilrbac.CreateOrPatchRoleBinding(
 		c.Client,
 		metav1.ObjectMeta{
-			Name:      elastic.Name,
-			Namespace: elastic.Namespace,
+			Name:      elasticsearch.OffshootName(),
+			Namespace: elasticsearch.Namespace,
 		},
 		func(in *rbac.RoleBinding) *rbac.RoleBinding {
 			in.RoleRef = rbac.RoleRef{
 				APIGroup: rbac.GroupName,
 				Kind:     "Role",
-				Name:     elastic.Name,
+				Name:     elasticsearch.OffshootName(),
 			}
 			in.Subjects = []rbac.Subject{
 				{
 					Kind:      rbac.ServiceAccountKind,
-					Name:      elastic.Name,
-					Namespace: elastic.Namespace,
+					Name:      elasticsearch.OffshootName(),
+					Namespace: elasticsearch.Namespace,
 				},
 			}
 			return in
@@ -111,38 +105,38 @@ func (c *Controller) ensureRoleBinding(elastic *api.Elasticsearch) error {
 	return err
 }
 
-func (c *Controller) ensureRBACStuff(elastic *api.Elasticsearch) error {
+func (c *Controller) ensureRBACStuff(elasticsearch *api.Elasticsearch) error {
 	// Create New Role
-	if err := c.ensureRole(elastic); err != nil {
+	if err := c.ensureRole(elasticsearch); err != nil {
 		return err
 	}
 
 	// Create New ServiceAccount
-	if err := c.ensureServiceAccount(elastic); err != nil {
+	if err := c.ensureServiceAccount(elasticsearch); err != nil {
 		return err
 	}
 
 	// Create New RoleBinding
-	if err := c.ensureRoleBinding(elastic); err != nil {
+	if err := c.ensureRoleBinding(elasticsearch); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (c *Controller) deleteRBACStuff(elastic *api.Elasticsearch) error {
+func (c *Controller) deleteRBACStuff(elasticsearch *api.Elasticsearch) error {
 	// Delete Existing Role
-	if err := c.deleteRole(elastic); err != nil {
+	if err := c.deleteRole(elasticsearch); err != nil {
 		return err
 	}
 
 	// Delete ServiceAccount
-	if err := c.deleteServiceAccount(elastic); err != nil {
+	if err := c.deleteServiceAccount(elasticsearch); err != nil {
 		return err
 	}
 
 	// Delete New RoleBinding
-	if err := c.deleteRoleBinding(elastic); err != nil {
+	if err := c.deleteRoleBinding(elasticsearch); err != nil {
 		return err
 	}
 	return nil

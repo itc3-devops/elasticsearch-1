@@ -139,6 +139,9 @@ func (c *Controller) createRestoreJob(elasticsearch *api.Elasticsearch, snapshot
 			},
 		},
 	}
+	if c.opt.EnableRbac {
+		job.Spec.Template.Spec.ServiceAccountName = elasticsearch.OffshootName()
+	}
 	if snapshot.Spec.SnapshotStorageSpec.Local != nil {
 		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, core.VolumeMount{
 			Name:      "local",
@@ -279,7 +282,9 @@ func (c *Controller) GetSnapshotter(snapshot *api.Snapshot) (*batch.Job, error) 
 			},
 		},
 	}
-
+	if c.opt.EnableRbac {
+		job.Spec.Template.Spec.ServiceAccountName = elasticsearch.OffshootName()
+	}
 	if snapshot.Spec.SnapshotStorageSpec.Local != nil {
 		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, core.VolumeMount{
 			Name:      "local",

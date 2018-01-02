@@ -69,7 +69,7 @@ func (c *Controller) ensureStatefulSet(
 		in = upsertDataVolume(in, elasticsearch)
 
 		if c.opt.EnableRbac {
-			in.Spec.Template.Spec.ServiceAccountName = elasticsearch.Name
+			in.Spec.Template.Spec.ServiceAccountName = elasticsearch.OffshootName()
 		}
 
 		in.Spec.UpdateStrategy.Type = apps.RollingUpdateStatefulSetStrategyType
