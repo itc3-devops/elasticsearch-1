@@ -67,10 +67,11 @@ func (c *Controller) ensureStatefulSet(
 
 		in = upsertCertificate(in, elasticsearch.Spec.CertificateSecret.SecretName, isClient)
 		in = upsertDataVolume(in, elasticsearch)
-
-		if c.opt.EnableRbac {
-			in.Spec.Template.Spec.ServiceAccountName = elasticsearch.OffshootName()
-		}
+		/*
+			if c.opt.EnableRbac {
+				in.Spec.Template.Spec.ServiceAccountName = elasticsearch.OffshootName()
+			}
+		*/
 
 		in.Spec.UpdateStrategy.Type = apps.RollingUpdateStatefulSetStrategyType
 
